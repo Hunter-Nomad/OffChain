@@ -7,7 +7,7 @@ contract OffChain{
     struct borrower{ // структура заемщиков
         uint8 loopLoanOfMoney; // номер транзакции, если возврат частями
         uint loanAmount; // сумма займа
-        uint loanBalance; // остаток по займу
+        uint loanBalance; // выплачено по займу
         uint setLoanBalance; // взнос по последней транзакции
         uint8 _status; // статус займа. 0 - заявка подана, 1 - займ выдан, 2 - займ возвращен
     }
@@ -31,54 +31,57 @@ contract OffChain{
     
     // заявка на займ денег
     function loanOfMoney(uint _loanAmount) public{
-        if(borrowers[msg.sender]._status == 0){
-            borrowers[msg.sender].loanAmount = _loanAmount; //сумма займа
+        require(_loanAmount == 0);
+        if(borrowers[msg.sender]._status == 2){ // если долг погашен, то можно подать новую заявку
             borrowers[msg.sender]._status = 0; // статус "заявка подана"
-            LoanOfMoney(msg.sender, _loanAmount);
         }
+        borrowers[msg.sender].loanAmount += _loanAmount; //сумма займа
+        LoanOfMoney(msg.sender, _loanAmount);
     }
     
     // проверить состояние займа
-    function getBalance(address _address) public view returns(uint8, uint, uint, uint, string){
+    function getBalance(address addr) public view returns(uint8, uint, uint, uint, string){
+        address _address;
         if(owner == msg.sender){
-            if(borrowers[_address]._status == 0){
-                return (borrowers[_address].loopLoanOfMoney, borrowers[_address].loanAmount, borrowers[_address].loanBalance, borrowers[_address].setLoanBalance, "Займ не выдан, или на рассмотрении");
-            }
-            if(borrowers[_address]._status == 1){
-                return (borrowers[_address].loopLoanOfMoney, borrowers[_address].loanAmount, borrowers[_address].loanBalance, borrowers[_address].setLoanBalance, "Займ выдан, но не погашен");
-            }
-            if(borrowers[_address]._status == 2){
-                return (borrowers[_address].loopLoanOfMoney, borrowers[_address].loanAmount, borrowers[_address].loanBalance, borrowers[_address].setLoanBalance, "Займ погашен");
-            }
+            _address = addr;
         } else {
-            if(borrowers[msg.sender]._status == 0){
-                return (borrowers[msg.sender].loopLoanOfMoney, borrowers[msg.sender].loanAmount, borrowers[msg.sender].loanBalance, borrowers[msg.sender].setLoanBalance, "Займ не выдан, или на рассмотрении");
-            }
-            if(borrowers[msg.sender]._status == 1){
-                return (borrowers[msg.sender].loopLoanOfMoney, borrowers[msg.sender].loanAmount, borrowers[msg.sender].loanBalance, borrowers[msg.sender].setLoanBalance, "Займ выдан, но не погашен");
-            }
-            if(borrowers[msg.sender]._status == 2){
-                return (borrowers[msg.sender].loopLoanOfMoney, borrowers[msg.sender].loanAmount, borrowers[msg.sender].loanBalance, borrowers[msg.sender].setLoanBalance, "Займ погашен");
-            }
+            _address = msg.sender;
+        }
+        if(borrowers[_address]._status == 0){
+            return (borrowers[_address].loopLoanOfMoney, borrowers[_address].loanAmount, borrowers[_address].loanBalance, borrowers[_address].setLoanBalance, "Займ не выдан, или на рассмотрении");
+        }
+        if(borrowers[_address]._status == 1){
+            return (borrowers[_address].loopLoanOfMoney, borrowers[_address].loanAmount, borrowers[_address].loanBalance, borrowers[_address].setLoanBalance, "Займ выдан, но не погашен");
+        }
+        if(borrowers[_address]._status == 2){
+            return (borrowers[_address].loopLoanOfMoney, borrowers[_address].loanAmount, borrowers[_address].loanBalance, borrowers[_address].setLoanBalance, "Займ погашен");
         }
     }
   
     // установление стастуса займа или погашение долга по займу
     function setBalance(address _address, uint _setLoanBalance) public isOwner{
-        if(_setLoanBalance != 0){
+        // проверка на превышение взноса по возврату долга
+        if((borrowers[_address].loanAmount - borrowers[_address].loanBalance) < _setLoanBalance){
+            _setLoanBalance = borrowers[_address].loanAmount - borrowers[_address].loanBalance;
+        }
+         // установка статуса погашенного долга
+        if(_setLoanBalance == 0 && borrowers[_address]._status == 0){
+            borrowers[_address]._status = 1; // статус "займ выдан"
+        }
+        // взнос по задолжности
+        if(_setLoanBalance > 0){
             borrowers[_address].loanBalance += _setLoanBalance; // пополнение суммы по долгу
             borrowers[_address].setLoanBalance = _setLoanBalance; // взнос по последней транзакции
             borrowers[_address].loopLoanOfMoney += 1; // номер транзакции по долгу
+            
         }
+        // долг погашен
         if(borrowers[_address].loanAmount == borrowers[_address].loanBalance){
-            borrowers[_address].loanAmount = 0; // обнудение суммы займа
-            borrowers[_address].loanBalance = 0; // обнудение долга по займу
-            borrowers[_address].setLoanBalance = 0; // обнудение последнего взноса
-            borrowers[_address].loopLoanOfMoney = 0; // обнудение номера транзакции
+            borrowers[_address].loanAmount = 0; // обнуление суммы займа
+            borrowers[_address].loanBalance = 0; // обнуление выплаты по займу
+            borrowers[_address].setLoanBalance = 0; // обнуление последнего взноса
+            borrowers[_address].loopLoanOfMoney = 0; // обнуление номера транзакции
             borrowers[_address]._status = 2; // статус "займ возвращен"
-        }
-        if(_setLoanBalance == 0 && borrowers[_address]._status == 0){
-            borrowers[_address]._status = 1; // статус "займ выдан"
         }
     }
     
