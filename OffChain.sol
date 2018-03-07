@@ -19,30 +19,37 @@ contract OffChain{
     mapping(address => borrower) borrowers; 
     
     // модификатор признака владельца контракта
-	modifier isOwner {
-	    require(owner == msg.sender);
-	    _;
-	}
-	
+    modifier isOwner {
+        require(owner == msg.sender);
+        _;
+    }
+    
     // конструктор
     function OffChain() public{
         owner = msg.sender;
     }
     
     // заявка на займ денег
-    function loanOfMoney(uint _loanAmount) public{        
+    function loanOfMoney(uint _loanAmount) public{
         if(borrowers[msg.sender]._status == 2){ // если долг погашен, то можно подать новую заявку
             borrowers[msg.sender]._status = 0; // статус "заявка подана"
         }
-        borrowers[msg.sender].loanAmount += _loanAmount; //сумма займа
-        LoanOfMoney(msg.sender, _loanAmount);
+        if(borrowers[msg.sender]._status == 1){ // если долг еще не погашен, но заявка подана на дополнительный займ заявку
+            borrowers[msg.sender].loanAmount += _loanAmount; //сумма займа
+            borrowers[msg.sender]._status = 0; // статус "заявка подана"
+            LoanOfMoney(msg.sender, _loanAmount);
+        }
+        if(borrowers[msg.sender]._status == 0){ // если долг погашен, то можно подать новую заявку
+            borrowers[msg.sender].loanAmount += _loanAmount; //сумма займа
+            LoanOfMoney(msg.sender, _loanAmount);
+        }
     }
     
     // проверить состояние займа
-    function getBalance(address addr) public view returns(uint8, uint, uint, uint, string){        
+    function getBalance(address addr) public view returns(uint8, uint, uint, uint, string){
         address _address;
         if(owner == msg.sender){
-            require(addr == "0x0"); // проверка на "нулевой" адрес
+            require(addr != address(0));
             _address = addr;
         } else {
             _address = msg.sender;
@@ -86,7 +93,7 @@ contract OffChain{
     }
     
     // уничтожение контракта
-	function kill() public isOwner {
-		selfdestruct(owner);
-	}
+    function kill() public isOwner {
+        selfdestruct(owner);
+    }
 }
