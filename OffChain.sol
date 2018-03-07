@@ -30,8 +30,7 @@ contract OffChain{
     }
     
     // заявка на займ денег
-    function loanOfMoney(uint _loanAmount) public{
-        require(_loanAmount == 0);
+    function loanOfMoney(uint _loanAmount) public{        
         if(borrowers[msg.sender]._status == 2){ // если долг погашен, то можно подать новую заявку
             borrowers[msg.sender]._status = 0; // статус "заявка подана"
         }
@@ -40,9 +39,10 @@ contract OffChain{
     }
     
     // проверить состояние займа
-    function getBalance(address addr) public view returns(uint8, uint, uint, uint, string){
+    function getBalance(address addr) public view returns(uint8, uint, uint, uint, string){        
         address _address;
         if(owner == msg.sender){
+            require(addr == "0x0"); // проверка на "нулевой" адрес
             _address = addr;
         } else {
             _address = msg.sender;
